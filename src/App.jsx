@@ -114,7 +114,8 @@ export default function App() {
           <Route path="/chat" element={<Chatbot />} />
 
           {/* 5. LoginPage 라우트(경로) 추가 */}
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" 
+          element={<LoginPage onLoginSuccess={()=>setIsLoggedIn(true)}/>} />
 
         </Routes>
       </main>

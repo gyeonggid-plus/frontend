@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 const VITE_API_BASE_URL=import.meta.env.VITE_API_BASE_URL;
 const VITE_GOOGLE_CLIENT_ID=import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-function LoginPage(){
+function LoginPage({ onLoginSuccess }){
     const navigate=useNavigate();
 
     const handleGoogleLoginSuccess=async(credentialResponse)=>{
@@ -27,9 +27,12 @@ function LoginPage(){
             console.log("백엔드로부터 토큰을 받았습니다!",appAccessToken);
             console.log("사용자 정보: ",response.data.user);
             localStorage.setItem('myAppToken',appAccessToken);
+            if(onLoginSuccess){
+                onLoginSuccess();
+            }
 
             //TODO: 로그인 성공 후 메인 페이지 이동
-            //navigate('/home');
+            navigate('/home');
         }
         catch(error){
             console.error("백엔드 토큰 검증 실패 :",error);
