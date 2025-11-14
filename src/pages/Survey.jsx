@@ -144,7 +144,7 @@ export default function Survey() {
             value={age}
             onChange={(e) => setAge(e.target.value)}
             className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-[#00a69c] focus:outline-none"
-            placeholder="예: 29"
+            placeholder="예: 25"
           />
         </label>
 
