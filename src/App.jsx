@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrowserRouter as Router, Routes, Route, NavLink } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import Home from "./pages/Home";
 import BenefitSearch from "./pages/BenefitSearch";
@@ -14,7 +14,7 @@ export default function App() {
   const { isAuthenticated, logout } = useAuth();
 
   const navLinks = [
-    { path: "/", label: "홈" },
+    { path: "/", label: "홈", protected: true },
     { path: "/search", label: "복지 검색", protected: true },
     { path: "/map", label: "복지 지도", protected: true },
     { path: "/chat", label: "챗봇", protected: true },
@@ -46,7 +46,7 @@ export default function App() {
     <Router>
       <header className="bg-blue-600 text-white shadow-md sticky top-0 z-50">
         <nav className="flex justify-between items-center px-6 py-3">
-          <h1 className="text-lg sm:text-xl font-bold tracking-wide">경기 복지 도우미</h1>
+          <h1 className="text-lg sm:text-xl font-bold tracking-wide">경기 복지 비서, 경기D+</h1>
 
           <div className="hidden md:flex items-center gap-4 text-lg">
             {filteredNav.map(renderNavLink)}
@@ -63,7 +63,7 @@ export default function App() {
           <button
             className="md:hidden p-2 rounded hover:bg-blue-500 transition"
             onClick={() => setMenuOpen((prev) => !prev)}
-            aria-label="모바일 메뉴 토글"
+            aria-label="모바일 메뉴 열기"
           >
             {menuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -100,9 +100,16 @@ export default function App() {
         )}
       </header>
 
-      <main className="p-8">
+      <main className="p-8 min-h-screen bg-gray-50">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/search"
             element={
@@ -128,6 +135,10 @@ export default function App() {
             }
           />
           <Route path="/login" element={<Login />} />
+          <Route
+            path="*"
+            element={<Navigate to={isAuthenticated ? "/" : "/login"} replace />}
+          />
         </Routes>
       </main>
     </Router>
