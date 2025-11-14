@@ -23,17 +23,35 @@ export default function GoogleLoginButton() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ id_token: res.credential }),
             });
+
             const data = await r.json();
             if (!r.ok) throw new Error(data?.detail || "로그인에 실패했습니다");
 
             const userPayload = data.user;
+            console.log(userPayload);
+            const responseStatus = data.status;
+            const responseFlag = data.new_user ?? data.is_new ?? data.created;
+
+            const simpleMarker =
+              typeof userPayload === "string"
+                ? userPayload
+                : typeof userPayload?.user === "string"
+                ? userPayload.user
+                : undefined;
+
             const isNewUser =
-              userPayload === "new user" ||
+              responseFlag === true ||
+              responseStatus === "created" ||
+              simpleMarker === "new user" ||
+              userPayload?.status === "new" ||
               userPayload?.status === "created" ||
-              userPayload?.is_new ||
-              userPayload?.type === "new user";
+              userPayload?.is_new === true ||
+              userPayload?.type === "new user" ||
+              userPayload?.type === "new_user";
             const normalizedUser =
-              typeof userPayload === "object" && userPayload !== null
+              typeof userPayload === "object" &&
+              userPayload !== null &&
+              typeof userPayload.user !== "string"
                 ? userPayload
                 : null;
 
