@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-function hasNewUserMarker(value) {
+function hasNewUserMarker(value: unknown): boolean {
   if (value == null) return false;
   if (typeof value === "string") {
     const normalized = value.toLowerCase().replace(/\s+/g, " ");
@@ -13,6 +13,20 @@ function hasNewUserMarker(value) {
   }
   return false;
 }
+
+const buildUserInfo = (payload: unknown, fallbackEmail?: string | null) => {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    typeof (payload as { user?: unknown }).user !== "string"
+  ) {
+    return payload as Record<string, unknown>;
+  }
+  if (fallbackEmail) {
+    return { email: fallbackEmail };
+  }
+  return null;
+};
 
 export default function GoogleLoginButton() {
   const divRef = useRef<HTMLDivElement | null>(null);
@@ -36,8 +50,7 @@ export default function GoogleLoginButton() {
               body: JSON.stringify({ id_token: res.credential }),
             });
             const result = await response.json();
-            if (!response.ok)
-              throw new Error(result?.detail || "로그인에 실패했습니다");
+            if (!response.ok) throw new Error(result?.detail || "로그인에 실패했습니다");
             return result;
           };
 
@@ -51,21 +64,17 @@ export default function GoogleLoginButton() {
               firstData.created === true ||
               hasNewUserMarker(firstData.user);
 
-            let token = firstData.access_token;
-            let normalizedUser =
-              typeof firstData.user === "object" && firstData.user !== null
-                ? (firstData.user as Record<string, unknown>)
-                : firstData.profile ??
-                  (firstData.email ? { email: firstData.email } : null);
+            let token: string | undefined = firstData.access_token;
+            let userInfo =
+              buildUserInfo(firstData.user, firstData.email) ??
+              (firstData.email ? { email: firstData.email } : null);
 
             if (isNewUser && !token) {
               const secondData = await verifyToken();
               token = secondData.access_token;
-              normalizedUser =
-                (typeof secondData.user === "object" && secondData.user !== null
-                  ? (secondData.user as Record<string, unknown>)
-                  : null) ||
-                normalizedUser ||
+              userInfo =
+                buildUserInfo(secondData.user, secondData.email) ??
+                userInfo ??
                 (secondData.email ? { email: secondData.email } : null);
             }
 
@@ -73,7 +82,7 @@ export default function GoogleLoginButton() {
               throw new Error("유효한 토큰을 받지 못했습니다");
             }
 
-            login(token, normalizedUser, isNewUser);
+            login(token, userInfo, isNewUser);
             navigate(isNewUser ? "/survey" : "/", { replace: true });
           } catch (e) {
             console.error(e);
