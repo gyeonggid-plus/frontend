@@ -34,66 +34,82 @@ const REGIONS = [
   "여주시",
 ];
 
+const SEX_OPTIONS = [
+  { value: "M", label: "남성" },
+  { value: "F", label: "여성" },
+];
+
 export default function Survey() {
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-  const { token, completeSurvey } = useAuth();
+  const { token, completeSurvey, user } = useAuth();
   const navigate = useNavigate();
 
   const [region, setRegion] = useState("");
-  const [gender, setGender] = useState("");
   const [age, setAge] = useState("");
+  const [sex, setSex] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!region) {
-      setError("거주 지역을 선택해 주세요.");
+    const parsedAge = Number(age);
+
+    if (!region || !sex || !age) {
+      setError("거주 지역, 나이, 성별을 모두 입력해 주세요.");
       return;
     }
 
-    if (!gender) {
-      setError("성별을 선택해 주세요.");
+    if (!Number.isInteger(parsedAge) || parsedAge <= 0) {
+      setError("나이는 1 이상의 정수로 입력해 주세요.");
       return;
     }
 
-    if (!age || Number.isNaN(Number(age))) {
-      setError("나이를 숫자로 입력해 주세요.");
+    if (!user?.email) {
+      setError("로그인 정보에서 이메일을 찾을 수 없습니다.");
       return;
     }
 
     setError("");
     setLoading(true);
 
-    const res = await fetch(`${BASE_URL}/api/survey/region`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ region, gender, age: Number(age) }),
-    });
-
-    if (!res.ok) {
-      console.warn("설문 저장 실패, 임시로 통과 처리합니다.");
+    try {
+      const res = await fetch(`${BASE_URL}/api/auth/post_inform`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          email: user.email,
+          age: parsedAge,
+          location: region,
+          sex,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error("failed to save user info");
+      }
+      completeSurvey();
+      navigate("/", { replace: true });
+    } catch (err) {
+      console.error(err);
+      setError("정보 저장에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setLoading(false);
     }
-
-    completeSurvey();
-    navigate("/", { replace: true });
-    setLoading(false);
   }
 
   return (
     <section className="mx-auto max-w-2xl rounded-3xl bg-white p-8 shadow-sm">
       <h1 className="text-2xl font-semibold text-slate-900">
-        환영합니다! 거주 지역을 알려주세요
+        환영합니다! 기본 정보를 입력해 주세요
       </h1>
       <p className="mt-2 text-sm text-slate-500">
-        맞춤 복지 추천을 위해 기본 지역 정보를 한 번만 입력해 주세요. 이후
+        맞춤 복지 추천을 위해 거주 지역, 나이, 성별을 입력해 주세요. 이후
         언제든지 마이페이지에서 변경할 수 있습니다.
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+      <form onSubmit={handleSubmit} className="mt-6 space-y-5">
         <label className="block text-sm font-semibold text-slate-700">
           거주 지역
           <select
@@ -111,42 +127,36 @@ export default function Survey() {
         </label>
 
         <label className="block text-sm font-semibold text-slate-700">
-          성별
-          <div className="mt-2 flex gap-4">
-            {["남성", "여성"].map((option) => (
-              <label
-                key={option}
-                className={`flex flex-1 cursor-pointer items-center justify-center rounded-2xl border px-4 py-3 text-sm ${
-                  gender === option
-                    ? "border-[#00a69c] text-[#00a69c]"
-                    : "border-slate-200 text-slate-600"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="gender"
-                  value={option}
-                  checked={gender === option}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="sr-only"
-                />
-                {option}
-              </label>
-            ))}
-          </div>
-        </label>
-
-        <label className="block text-sm font-semibold text-slate-700">
           나이
           <input
             type="number"
-            min="0"
+            min={1}
             value={age}
             onChange={(e) => setAge(e.target.value)}
             className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-[#00a69c] focus:outline-none"
-            placeholder="예: 25"
+            placeholder="만 나이를 입력하세요"
           />
         </label>
+
+        <div className="text-sm font-semibold text-slate-700">
+          성별
+          <div className="mt-2 flex flex-wrap gap-3">
+            {SEX_OPTIONS.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                onClick={() => setSex(option.value)}
+                className={`rounded-2xl border px-4 py-2 text-sm transition ${
+                  sex === option.value
+                    ? "border-[#00a69c] bg-[#00a69c]/10 text-[#00a69c]"
+                    : "border-slate-200 text-slate-600"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
