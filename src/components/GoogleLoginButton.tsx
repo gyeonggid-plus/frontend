@@ -39,15 +39,7 @@ export default function GoogleLoginButton() {
                 ? userPayload.user
                 : undefined;
 
-            const isNewUser =
-              responseFlag === true ||
-              responseStatus === "created" ||
-              simpleMarker === "new user" ||
-              userPayload?.status === "new" ||
-              userPayload?.status === "created" ||
-              userPayload?.is_new === true ||
-              userPayload?.type === "new user" ||
-              userPayload?.type === "new_user";
+            const isNewUser = userPayload === "new user";
             const normalizedUser =
               typeof userPayload === "object" &&
               userPayload !== null &&
