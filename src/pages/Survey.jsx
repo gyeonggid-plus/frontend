@@ -40,6 +40,8 @@ export default function Survey() {
   const navigate = useNavigate();
 
   const [region, setRegion] = useState("");
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,6 +49,16 @@ export default function Survey() {
     e.preventDefault();
     if (!region) {
       setError("거주 지역을 선택해 주세요.");
+      return;
+    }
+
+    if (!gender) {
+      setError("성별을 선택해 주세요.");
+      return;
+    }
+
+    if (!age || Number.isNaN(Number(age))) {
+      setError("나이를 숫자로 입력해 주세요.");
       return;
     }
 
@@ -59,7 +71,7 @@ export default function Survey() {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ region }),
+      body: JSON.stringify({ region, gender, age: Number(age) }),
     });
 
     if (!res.ok) {
@@ -96,6 +108,44 @@ export default function Survey() {
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="block text-sm font-semibold text-slate-700">
+          성별
+          <div className="mt-2 flex gap-4">
+            {["남성", "여성"].map((option) => (
+              <label
+                key={option}
+                className={`flex flex-1 cursor-pointer items-center justify-center rounded-2xl border px-4 py-3 text-sm ${
+                  gender === option
+                    ? "border-[#00a69c] text-[#00a69c]"
+                    : "border-slate-200 text-slate-600"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="gender"
+                  value={option}
+                  checked={gender === option}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="sr-only"
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+        </label>
+
+        <label className="block text-sm font-semibold text-slate-700">
+          나이
+          <input
+            type="number"
+            min="0"
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 focus:border-[#00a69c] focus:outline-none"
+            placeholder="예: 29"
+          />
         </label>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
