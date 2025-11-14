@@ -2,6 +2,18 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+function hasNewUserMarker(value) {
+  if (value == null) return false;
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase().replace(/\s+/g, " ");
+    return normalized === "new user" || normalized === "new_user";
+  }
+  if (typeof value === "object") {
+    return Object.values(value).some((entry) => hasNewUserMarker(entry));
+  }
+  return false;
+}
+
 export default function GoogleLoginButton() {
   const divRef = useRef<HTMLDivElement | null>(null);
   const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
@@ -17,37 +29,51 @@ export default function GoogleLoginButton() {
       window.google.accounts.id.initialize({
         client_id: CLIENT_ID,
         callback: async (res: any) => {
-          try {
-            const r = await fetch(`${BASE_URL}/api/auth/google/verify`, {
+          const verifyToken = async () => {
+            const response = await fetch(`${BASE_URL}/api/auth/google/verify`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ id_token: res.credential }),
             });
+            const result = await response.json();
+            if (!response.ok)
+              throw new Error(result?.detail || "로그인에 실패했습니다");
+            return result;
+          };
 
-            const data = await r.json();
-            if (!r.ok) throw new Error(data?.detail || "로그인에 실패했습니다");
+          try {
+            const firstData = await verifyToken();
 
-            const userPayload = data.user;
-            console.log(userPayload);
-            const responseStatus = data.status;
-            const responseFlag = data.new_user ?? data.is_new ?? data.created;
+            const isNewUser =
+              firstData.status === "created" ||
+              firstData.new_user === true ||
+              firstData.is_new === true ||
+              firstData.created === true ||
+              hasNewUserMarker(firstData.user);
 
-            const simpleMarker =
-              typeof userPayload === "string"
-                ? userPayload
-                : typeof userPayload?.user === "string"
-                ? userPayload.user
-                : undefined;
+            let token = firstData.access_token;
+            let normalizedUser =
+              typeof firstData.user === "object" && firstData.user !== null
+                ? (firstData.user as Record<string, unknown>)
+                : firstData.profile ??
+                  (firstData.email ? { email: firstData.email } : null);
 
-            const isNewUser = userPayload === "new user";
-            const normalizedUser =
-              typeof userPayload === "object" &&
-              userPayload !== null &&
-              typeof userPayload.user !== "string"
-                ? userPayload
-                : null;
+            if (isNewUser && !token) {
+              const secondData = await verifyToken();
+              token = secondData.access_token;
+              normalizedUser =
+                (typeof secondData.user === "object" && secondData.user !== null
+                  ? (secondData.user as Record<string, unknown>)
+                  : null) ||
+                normalizedUser ||
+                (secondData.email ? { email: secondData.email } : null);
+            }
 
-            login(data.access_token, normalizedUser, isNewUser);
+            if (!token) {
+              throw new Error("유효한 토큰을 받지 못했습니다");
+            }
+
+            login(token, normalizedUser, isNewUser);
             navigate(isNewUser ? "/survey" : "/", { replace: true });
           } catch (e) {
             console.error(e);

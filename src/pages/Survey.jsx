@@ -53,34 +53,32 @@ export default function Survey() {
     setError("");
     setLoading(true);
 
-    try {
-      const res = await fetch(`${BASE_URL}/api/survey/region`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ region }),
-      });
-      if (!res.ok) {
-        throw new Error("failed to save survey");
-      }
-      completeSurvey();
-      navigate("/", { replace: true });
-    } catch (err) {
-      console.warn("설문 저장 실패, 임시로 통과 처리합니다.", err);
-      completeSurvey();
-      navigate("/", { replace: true });
-    } finally {
-      setLoading(false);
+    const res = await fetch(`${BASE_URL}/api/survey/region`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ region }),
+    });
+
+    if (!res.ok) {
+      console.warn("설문 저장 실패, 임시로 통과 처리합니다.");
     }
+
+    completeSurvey();
+    navigate("/", { replace: true });
+    setLoading(false);
   }
 
   return (
     <section className="mx-auto max-w-2xl rounded-3xl bg-white p-8 shadow-sm">
-      <h1 className="text-2xl font-semibold text-slate-900">환영합니다! 거주 지역을 알려주세요</h1>
+      <h1 className="text-2xl font-semibold text-slate-900">
+        환영합니다! 거주 지역을 알려주세요
+      </h1>
       <p className="mt-2 text-sm text-slate-500">
-        맞춤 복지 추천을 위해 기본 지역 정보를 한 번만 입력해 주세요. 이후 언제든지 마이페이지에서 변경할 수 있습니다.
+        맞춤 복지 추천을 위해 기본 지역 정보를 한 번만 입력해 주세요. 이후
+        언제든지 마이페이지에서 변경할 수 있습니다.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
