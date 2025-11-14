@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BadgeCheck, CalendarDays, MapPin, MessageCircle, Search, Sparkles } from "lucide-react";
+import {
+  BadgeCheck,
+  CalendarDays,
+  MapPin,
+  MessageCircle,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const FALLBACK_RECOMMENDATIONS = [
@@ -49,25 +56,70 @@ const FALLBACK_RECOMMENDATIONS = [
 ];
 
 const QUICK_ACTIONS = [
-  { id: "finder", label: "맞춤 복지 찾기", desc: "조건 설정 후 추천 받기", icon: Search, path: "/search" },
-  { id: "map", label: "복지 지도", desc: "가까운 센터 확인", icon: MapPin, path: "/map" },
-  { id: "chat", label: "챗봇 상담", desc: "실시간 질문 응답", icon: MessageCircle, path: "/chat" },
+  {
+    id: "finder",
+    label: "맞춤 복지 찾기",
+    desc: "조건 설정 후 추천 받기",
+    icon: Search,
+    path: "/search",
+  },
+  {
+    id: "map",
+    label: "복지 지도",
+    desc: "가까운 센터 확인",
+    icon: MapPin,
+    path: "/map",
+  },
+  {
+    id: "chat",
+    label: "챗봇 상담",
+    desc: "실시간 질문 응답",
+    icon: MessageCircle,
+    path: "/chat",
+  },
 ];
 
 const RECENT_ACTIVITIES = [
-  { id: "1", title: "청년 주거비 지원 신청", status: "검토 중", date: "2025.02.03" },
-  { id: "2", title: "복지 플래너 상담 예약", status: "완료", date: "2025.01.23" },
-  { id: "3", title: "경기 긴급복지 문의", status: "답변 완료", date: "2025.01.18" },
+  {
+    id: "1",
+    title: "청년 주거비 지원 신청",
+    status: "검토 중",
+    date: "2025.02.03",
+  },
+  {
+    id: "2",
+    title: "복지 플래너 상담 예약",
+    status: "완료",
+    date: "2025.01.23",
+  },
+  {
+    id: "3",
+    title: "경기 긴급복지 문의",
+    status: "답변 완료",
+    date: "2025.01.18",
+  },
 ];
+
+function normalizeApplicationId(value) {
+  if (typeof value === "number" || typeof value === "string") {
+    return value;
+  }
+  return null;
+}
 
 export default function Home() {
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const navigate = useNavigate();
 
   const [healthStatus, setHealthStatus] = useState("정상");
-  const [recommendations, setRecommendations] = useState(FALLBACK_RECOMMENDATIONS);
+  const [recommendations, setRecommendations] = useState(
+    FALLBACK_RECOMMENDATIONS
+  );
   const [loadingBenefit, setLoadingBenefit] = useState(true);
+  const [submittingId, setSubmittingId] = useState(null);
+  const [appliedIds, setAppliedIds] = useState([]);
+  const [applicationMessage, setApplicationMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -107,10 +159,35 @@ export default function Home() {
     loadStatus();
     loadBenefits();
 
+    async function loadApplications() {
+      if (!token) return;
+      try {
+        const res = await fetch(`${BASE_URL}/api/applications`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const ids = data
+            .map((item) =>
+              normalizeApplicationId(
+                item.benefit_id ?? item.benefitId ?? item.id
+              )
+            )
+            .filter((id) => id !== null);
+          setAppliedIds(ids);
+        }
+      } catch (err) {
+        console.warn("Failed to load applications", err);
+      }
+    }
+
+    loadApplications();
+
     return () => {
       cancelled = true;
     };
-  }, [BASE_URL]);
+  }, [BASE_URL, token]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -119,16 +196,49 @@ export default function Home() {
     return "편안한 저녁 보내세요";
   }, []);
 
+  async function handleApply(benefit) {
+    if (!token) return;
+    const normalizedId = benefit.id ?? benefit.benefit_id;
+    if (appliedIds.includes(normalizedId)) return;
+    setSubmittingId(normalizedId);
+    setApplicationMessage("");
+    try {
+      const res = await fetch(`${BASE_URL}/api/applications`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ benefit_id: normalizedId, title: benefit.title }),
+      });
+      if (!res.ok) throw new Error("failed");
+      setAppliedIds((prev) =>
+        Array.from(new Set([...prev, normalizedId]))
+      );
+      setApplicationMessage(
+        `'${benefit.title}' 신청이 완료되었습니다. 마이페이지에서 신청 내역을 확인할 수 있습니다.`
+      );
+    } catch (err) {
+      console.error(err);
+      setApplicationMessage("신청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setSubmittingId(null);
+    }
+  }
+
   return (
     <section className="space-y-8">
       <div className="grid gap-6 rounded-3xl bg-white p-8 shadow-sm lg:grid-cols-[2fr,1fr]">
         <div>
-          <p className="text-sm uppercase tracking-[0.4em] text-[#00a69c]">오늘의 정보</p>
+          <p className="text-sm uppercase tracking-[0.4em] text-[#00a69c]">
+            오늘의 정보
+          </p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">
             {greeting}, {user?.name || "경기도민"}님!
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            지금 신청 가능한 맞춤 복지 혜택과 진행 상황을 한눈에 확인할 수 있어요.
+            지금 신청 가능한 맞춤 복지 혜택과 진행 상황을 한눈에 확인할 수
+            있어요.
           </p>
           <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-600">
             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2">
@@ -142,7 +252,9 @@ export default function Home() {
           </div>
         </div>
         <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-          <h2 className="text-base font-semibold text-slate-900">진행 중인 신청</h2>
+          <h2 className="text-base font-semibold text-slate-900">
+            진행 중인 신청
+          </h2>
           <p className="mt-1">지금은 확인된 신청 내역이 없습니다.</p>
           <button
             className="mt-4 w-full rounded-2xl bg-[#00a69c] py-3 text-sm font-semibold text-white"
@@ -155,24 +267,51 @@ export default function Home() {
 
       <section className="rounded-3xl bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-slate-900">추천 복지 혜택</h2>
-          <button className="text-sm font-semibold text-[#00a69c]" onClick={() => navigate("/search")}>
+          <h2 className="text-xl font-semibold text-slate-900">
+            추천 복지 혜택
+          </h2>
+          <button
+            className="text-sm font-semibold text-[#00a69c]"
+            onClick={() => navigate("/search")}
+          >
             전체 보기
           </button>
         </div>
+        {applicationMessage && (
+          <p className="mt-2 rounded-2xl bg-slate-50 px-4 py-2 text-sm text-slate-600">
+            {applicationMessage}
+          </p>
+        )}
         <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {recommendations.map((benefit) => (
-            <article key={benefit.id} className="rounded-2xl border border-slate-100 p-5 shadow-sm">
+            <article
+              key={benefit.id}
+              className="rounded-2xl border border-slate-100 p-5 shadow-sm"
+            >
               <div className="text-xs font-semibold text-slate-400">
                 {benefit.category} · {benefit.region}
               </div>
-              <h3 className="mt-2 text-lg font-semibold text-slate-900">{benefit.title}</h3>
+              <h3 className="mt-2 text-lg font-semibold text-slate-900">
+                {benefit.title}
+              </h3>
               <p className="mt-1 text-sm text-slate-600">{benefit.desc}</p>
               <button
-                onClick={() => navigate("/search")}
-                className="mt-4 text-sm font-semibold text-[#00a69c] hover:underline"
+                onClick={() => handleApply(benefit)}
+                disabled={
+                  appliedIds.includes(benefit.id ?? benefit.benefit_id) ||
+                  submittingId === (benefit.id ?? benefit.benefit_id)
+                }
+                className={`mt-4 rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                  appliedIds.includes(benefit.id ?? benefit.benefit_id)
+                    ? "border-slate-200 text-slate-400"
+                    : "border-[#00a69c] text-[#00a69c] hover:bg-[#00a69c]/5"
+                }`}
               >
-                자세히 보기
+                {appliedIds.includes(benefit.id ?? benefit.benefit_id)
+                  ? "신청 완료"
+                  : submittingId === (benefit.id ?? benefit.benefit_id)
+                  ? "신청 중..."
+                  : "신청하기"}
               </button>
             </article>
           ))}
@@ -199,7 +338,9 @@ export default function Home() {
                     <Icon className="h-5 w-5" />
                   </span>
                   <div>
-                    <p className="text-base font-semibold text-slate-900">{label}</p>
+                    <p className="text-base font-semibold text-slate-900">
+                      {label}
+                    </p>
                     <p className="text-xs text-slate-500">{desc}</p>
                   </div>
                 </div>
@@ -213,7 +354,10 @@ export default function Home() {
           <h2 className="text-xl font-semibold text-slate-900">최근 활동</h2>
           <ul className="mt-4 space-y-4 text-sm">
             {RECENT_ACTIVITIES.map((activity) => (
-              <li key={activity.id} className="rounded-2xl border border-slate-100 p-4">
+              <li
+                key={activity.id}
+                className="rounded-2xl border border-slate-100 p-4"
+              >
                 <p className="font-semibold text-slate-900">{activity.title}</p>
                 <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
                   <span>{activity.status}</span>

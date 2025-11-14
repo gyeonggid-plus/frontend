@@ -1,0 +1,103 @@
+import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+
+export default function MyPage() {
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const { token, user } = useAuth();
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadApplications() {
+      try {
+        const res = await fetch(`${BASE_URL}/api/applications`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!res.ok) throw new Error("failed");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setApplications(data);
+        } else {
+          setApplications([]);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("신청 내역을 불러오지 못했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadApplications();
+  }, [BASE_URL, token]);
+
+  async function cancelApplication(id) {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BASE_URL}/api/applications/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("failed");
+      setApplications((prev) => prev.filter((app) => app.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("신청 취소에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  }
+
+  return (
+    <section className="space-y-6">
+      <header className="rounded-3xl bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold text-slate-900">
+          <span className="block sm:inline">{user?.name || "경기도민"}님의</span>{" "}
+          신청 내역
+        </h1>
+        <p className="mt-2 text-sm text-slate-500">
+          진행 중인 복지 신청을 한눈에 확인하고, 필요하면 취소할 수 있습니다.
+        </p>
+      </header>
+
+      <div className="rounded-3xl bg-white p-6 shadow-sm">
+        {loading ? (
+          <p className="text-sm text-slate-500">신청 내역을 불러오는 중입니다...</p>
+        ) : error ? (
+          <p className="text-sm text-red-500">{error}</p>
+        ) : applications.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+            아직 신청한 복지 혜택이 없습니다. 홈에서 신청을 시작해 보세요.
+          </div>
+        ) : (
+          <ul className="space-y-4">
+            {applications.map((app) => (
+              <li
+                key={app.id}
+                className="flex items-center justify-between rounded-2xl border border-slate-100 p-4 text-sm"
+              >
+                <div>
+                  <p className="text-base font-semibold text-slate-900">
+                    {app.title || app.name || "복지 신청"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {app.region || "경기도"} · {app.status || "검토 중"} ·{" "}
+                    {app.applied_at
+                      ? new Date(app.applied_at).toLocaleDateString()
+                      : "방금 전"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => cancelApplication(app.id)}
+                  className="flex items-center gap-2 rounded-full border border-red-100 px-4 py-2 text-xs font-semibold text-red-500 transition hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  취소
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}

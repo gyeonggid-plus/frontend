@@ -2,12 +2,6 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-declare global {
-  interface Window {
-    google?: any;
-  }
-}
-
 export default function GoogleLoginButton() {
   const divRef = useRef<HTMLDivElement | null>(null);
   const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
@@ -30,10 +24,21 @@ export default function GoogleLoginButton() {
               body: JSON.stringify({ id_token: res.credential }),
             });
             const data = await r.json();
-            if (!r.ok) throw new Error(data?.detail || "로그인 실패");
+            if (!r.ok) throw new Error(data?.detail || "로그인에 실패했습니다");
 
-            login(data.access_token, data.user);
-            navigate("/", { replace: true });
+            const userPayload = data.user;
+            const isNewUser =
+              userPayload === "new_user" ||
+              userPayload?.status === "new" ||
+              userPayload?.is_new ||
+              userPayload?.type === "new_user";
+            const normalizedUser =
+              typeof userPayload === "object" && userPayload !== null
+                ? userPayload
+                : null;
+
+            login(data.access_token, normalizedUser, isNewUser);
+            navigate(isNewUser ? "/survey" : "/", { replace: true });
           } catch (e) {
             console.error(e);
             alert("로그인에 실패했습니다. 다시 시도해 주세요.");

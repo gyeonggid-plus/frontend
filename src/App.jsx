@@ -6,26 +6,29 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { Home as HomeIcon, LogOut, Map, MessageCircle, Search } from "lucide-react";
+import { Home as HomeIcon, LogOut, Map, MessageCircle, Search, UserRound } from "lucide-react";
 import Home from "./pages/Home";
 import BenefitSearch from "./pages/BenefitSearch";
 import MapView from "./pages/MapView";
 import Chatbot from "./pages/Chatbot";
+import MyPage from "./pages/MyPage";
+import Survey from "./pages/Survey";
 import Login from "./pages/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 
 function AppLayout() {
   const location = useLocation();
-  const { isAuthenticated, logout, user } = useAuth();
+  const { isAuthenticated, logout, user, needsSurvey } = useAuth();
   const isLoginPage = location.pathname === "/login";
   const isChatPage = location.pathname === "/chat";
 
   const navLinks = [
-    { path: "/", label: "홈", protected: true },
-    { path: "/search", label: "복지 찾기", protected: true },
-    { path: "/map", label: "복지 지도", protected: true },
-    { path: "/chat", label: "챗봇", protected: true },
+    { path: "/", label: "홈", protected: true, icon: HomeIcon },
+    { path: "/search", label: "복지 찾기", protected: true, icon: Search },
+    { path: "/map", label: "복지 지도", protected: true, icon: Map },
+    { path: "/chat", label: "챗봇", protected: true, icon: MessageCircle },
+    { path: "/mypage", label: "마이페이지", protected: true, icon: UserRound },
   ];
 
   const filteredNav = navLinks.filter((link) => {
@@ -48,25 +51,31 @@ function AppLayout() {
               </div>
             </div>
 
-            <nav className="hidden flex-wrap items-center justify-center gap-2 text-xs font-semibold sm:flex sm:justify-start sm:text-sm">
-              {filteredNav.map(({ path, label }) => (
-                <NavLink
-                  key={path}
-                  to={path}
-                  className={({ isActive }) =>
-                    `rounded-full px-3 py-2 transition ${
-                      isActive ? "bg-[#00a69c]/10 text-[#00a69c]" : "text-slate-500 hover:text-[#00a69c]"
-                    }`
-                  }
-                >
-                  {label}
-                </NavLink>
-              ))}
-            </nav>
+            {!needsSurvey && (
+              <nav className="hidden flex-wrap items-center justify-center gap-2 text-xs font-semibold sm:flex sm:justify-start sm:text-sm">
+                {filteredNav.map(({ path, label }) => (
+                  <NavLink
+                    key={path}
+                    to={path}
+                    className={({ isActive }) =>
+                      `rounded-full px-3 py-2 transition ${
+                        isActive ? "bg-[#00a69c]/10 text-[#00a69c]" : "text-slate-500 hover:text-[#00a69c]"
+                      }`
+                    }
+                  >
+                    {label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
 
             <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-slate-500 sm:gap-4 sm:text-sm">
               <span className="font-medium text-slate-600">
-                {isAuthenticated ? `안녕하세요, ${user?.name || "경기도민"}님` : ""}
+                {isAuthenticated
+                  ? needsSurvey
+                    ? "설문을 완료해 주세요"
+                    : `안녕하세요, ${user?.name || "경기도민"}님`
+                  : ""}
               </span>
               {isAuthenticated ? (
                 <button
@@ -120,11 +129,27 @@ function AppLayout() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/chat"
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <Chatbot />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mypage"
+        element={
+          <ProtectedRoute>
+            <MyPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/survey"
             element={
-              <ProtectedRoute>
-                <Chatbot />
+              <ProtectedRoute allowSurvey>
+                <Survey />
               </ProtectedRoute>
             }
           />
@@ -136,18 +161,10 @@ function AppLayout() {
         </Routes>
       </main>
 
-      {isAuthenticated && !isLoginPage && (
+      {isAuthenticated && !isLoginPage && !needsSurvey && (
         <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 py-3 sm:hidden">
           <div className="mx-auto flex max-w-md items-center text-xs font-semibold">
-            {filteredNav.map(({ path, label }) => {
-              const Icon =
-                path === "/"
-                  ? HomeIcon
-                  : path === "/search"
-                  ? Search
-                  : path === "/map"
-                  ? Map
-                  : MessageCircle;
+            {filteredNav.map(({ path, label, icon: Icon }) => {
               return (
                 <NavLink
                   key={path}
@@ -163,13 +180,6 @@ function AppLayout() {
                 </NavLink>
               );
             })}
-            <button
-              onClick={logout}
-              className="flex flex-1 flex-col items-center gap-1 rounded-full px-3 py-1 text-slate-500"
-              >
-              <LogOut className="h-5 w-5" />
-              로그아웃
-            </button>
           </div>
         </nav>
       )}
