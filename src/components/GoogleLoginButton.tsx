@@ -27,11 +27,11 @@ export default function GoogleLoginButton() {
             if (!r.ok) throw new Error(data?.detail || "로그인에 실패했습니다");
 
             const userPayload = data.user;
-            const isNewUser =
-              userPayload === "new_user" ||
-              userPayload?.status === "new" ||
+            const isNewUser = true;
+            userPayload === "new user" ||
+              userPayload?.status === "created" ||
               userPayload?.is_new ||
-              userPayload?.type === "new_user";
+              userPayload?.type === "new user";
             const normalizedUser =
               typeof userPayload === "object" && userPayload !== null
                 ? userPayload
