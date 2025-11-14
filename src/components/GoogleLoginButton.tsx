@@ -40,10 +40,11 @@ export default function GoogleLoginButton() {
           }
         },
       });
+      const width = Math.min(320, divRef.current.offsetWidth || 320);
       window.google.accounts.id.renderButton(divRef.current, {
         theme: "outline",
         size: "large",
-        width: 320,
+        width,
         text: "continue_with",
         shape: "pill",
       });

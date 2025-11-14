@@ -2,31 +2,23 @@ import GoogleLoginButton from "../components/GoogleLoginButton";
 
 export default function Login() {
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen bg-white px-6">
-      <div className="flex flex-col items-center mb-8 text-center">
-        <div className="w-12 h-12 rounded-full bg-[#0C8CE9] flex items-center justify-center text-white font-bold text-xl">
-          D+
+    <main className="flex min-h-screen items-center justify-center bg-[#00a69c] px-4">
+      <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-2xl">
+        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#00a69c]/10 text-[#00a69c]">
+          <span className="text-2xl font-bold">D+</span>
         </div>
-        <h1 className="text-[#0C8CE9] text-sm mt-2 font-semibold">Gyeonggi D+</h1>
-        <p className="text-gray-800 text-lg font-semibold mt-1 leading-tight">
-          도민의 복지 비서, 경기톡D+
-        </p>
+        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.3em] text-[#00a69c]">도민의 복지 비서</p>
+        <h1 className="mt-2 text-3xl font-bold text-slate-900">경기D+</h1>
+        <p className="mt-1 text-sm text-slate-500">간편하게 로그인하고 맞춤 혜택을 시작해 보세요.</p>
+
+        <div className="mt-8 flex w-full flex-col gap-3">
+          <div className="w-full rounded-full border border-slate-200 px-4 py-3">
+            <GoogleLoginButton />
+          </div>
+        </div>
+
+        <p className="mt-6 text-[11px] text-slate-400">복지 각지의 데이터를 연결하는 경기D+</p>
       </div>
-
-      <div className="w-40 h-40 bg-gray-200 rounded-md mb-8 overflow-hidden flex items-center justify-center">
-        <span className="text-gray-400 text-sm">아이콘 영역</span>
-      </div>
-
-      <div className="w-full max-w-sm flex flex-col gap-3">
-        <GoogleLoginButton />
-
-        <button className="w-full rounded-lg py-3 flex items-center justify-center gap-2 bg-[#FEE500] text-gray-900 font-medium hover:brightness-95 transition">
-          <span className="text-base">카카오로 로그인</span>
-        </button>
-      </div>
-
-      <p className="text-gray-400 text-xs mt-8">복지 사각지대 없는 경기도를 위해</p>
     </main>
   );
 }
-

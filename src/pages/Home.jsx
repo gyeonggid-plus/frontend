@@ -1,36 +1,63 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bell, CalendarDays, MapPin, MessageCircle } from "lucide-react";
+import { BadgeCheck, CalendarDays, MapPin, MessageCircle, Search, Sparkles } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 const FALLBACK_RECOMMENDATIONS = [
   {
     id: 1,
-    title: "청년 월세 지원",
-    desc: "만 19~34세 무주택 청년에게 월 최대 20만 원을 지원합니다.",
+    title: "청년 주거비 지원",
+    desc: "19~34세 무주택 청년에게 보증금과 월세를 지원합니다.",
     region: "수원시",
     category: "주거",
   },
   {
     id: 2,
-    title: "한부모 가족 돌봄비",
-    desc: "돌봄 공백이 생긴 한부모 가정에 월 30만 원 돌봄비를 제공합니다.",
+    title: "경기 긴급복지",
+    desc: "갑작스러운 위기 상황 가구에 생계·의료비를 신속하게 지원합니다.",
+    region: "경기도",
+    category: "긴급",
+  },
+  {
+    id: 3,
+    title: "돌봄 공백 SOS",
+    desc: "돌봄 공백이 있는 가정에 돌봄 인력과 비용을 지원합니다.",
     region: "고양시",
     category: "돌봄",
   },
   {
-    id: 3,
-    title: "경기형 긴급복지",
-    desc: "갑작스러운 위기 가구에 생계·의료비를 신속하게 지원합니다.",
+    id: 4,
+    title: "문화누리 카드",
+    desc: "문화 생활을 지원하기 위해 연간 바우처를 제공합니다.",
     region: "경기도",
-    category: "긴급",
+    category: "문화",
+  },
+  {
+    id: 5,
+    title: "아이돌봄 바우처",
+    desc: "아이돌봄 시간이 필요한 가정에 시간당 지원을 제공합니다.",
+    region: "성남시",
+    category: "돌봄",
+  },
+  {
+    id: 6,
+    title: "에너지 바우처",
+    desc: "저소득층 겨울철 난방비 및 여름철 냉방비를 지원합니다.",
+    region: "경기도",
+    category: "생활",
   },
 ];
 
-const UPCOMING_ALERTS = [
-  { id: "apply-1", title: "청년 월세 지원 서류 제출", due: "D-3", action: "바로 제출" },
-  { id: "visit-1", title: "복지센터 방문 상담", due: "11월 21일(목)", action: "길찾기" },
-  { id: "sms-1", title: "맞춤 복지 소식 알림", due: "이번 주 발송 예정", action: "알림 관리" },
+const QUICK_ACTIONS = [
+  { id: "finder", label: "맞춤 복지 찾기", desc: "조건 설정 후 추천 받기", icon: Search, path: "/search" },
+  { id: "map", label: "복지 지도", desc: "가까운 센터 확인", icon: MapPin, path: "/map" },
+  { id: "chat", label: "챗봇 상담", desc: "실시간 질문 응답", icon: MessageCircle, path: "/chat" },
+];
+
+const RECENT_ACTIVITIES = [
+  { id: "1", title: "청년 주거비 지원 신청", status: "검토 중", date: "2025.02.03" },
+  { id: "2", title: "복지 플래너 상담 예약", status: "완료", date: "2025.01.23" },
+  { id: "3", title: "경기 긴급복지 문의", status: "답변 완료", date: "2025.01.18" },
 ];
 
 export default function Home() {
@@ -38,7 +65,7 @@ export default function Home() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [healthStatus, setHealthStatus] = useState("확인 중...");
+  const [healthStatus, setHealthStatus] = useState("정상");
   const [recommendations, setRecommendations] = useState(FALLBACK_RECOMMENDATIONS);
   const [loadingBenefit, setLoadingBenefit] = useState(true);
 
@@ -49,9 +76,9 @@ export default function Home() {
       try {
         const res = await fetch(`${BASE_URL}/api/health`);
         const data = await res.json();
-        if (!cancelled) setHealthStatus(data.status || "ok");
+        if (!cancelled) setHealthStatus(data.status || "정상");
       } catch {
-        if (!cancelled) setHealthStatus("서버 연결 실패");
+        if (!cancelled) setHealthStatus("연결 오류");
       }
     }
 
@@ -61,17 +88,17 @@ export default function Home() {
         if (!res.ok) throw new Error("failed to load benefits");
         const data = await res.json();
         if (!cancelled && Array.isArray(data?.welfare)) {
-          const normalized = data.welfare.slice(0, 3).map((item) => ({
-            id: item.id,
+          const normalized = data.welfare.slice(0, 6).map((item, index) => ({
+            id: item.id ?? index,
             title: item.title,
             desc: item.desc,
             region: item.region,
-            category: "복지",
+            category: item.category ?? "복지",
           }));
           setRecommendations(normalized);
         }
       } catch {
-        // fallback already set
+        // keep fallback data
       } finally {
         if (!cancelled) setLoadingBenefit(false);
       }
@@ -87,142 +114,114 @@ export default function Home() {
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return "좋은 아침이에요";
-    if (hour < 18) return "반가워요";
-    return "편안한 저녁 되세요";
+    if (hour < 12) return "좋은 아침입니다";
+    if (hour < 18) return "반갑습니다";
+    return "편안한 저녁 보내세요";
   }, []);
 
-  const actionButtons = [
-    { id: "map", label: "복지 지도 보기", icon: <MapPin className="h-5 w-5" />, path: "/map" },
-    { id: "chat", label: "챗봇에게 질문", icon: <MessageCircle className="h-5 w-5" />, path: "/chat" },
-    {
-      id: "calendar",
-      label: "일정 · 알림 관리",
-      icon: <CalendarDays className="h-5 w-5" />,
-      path: "/search",
-    },
-  ];
-
   return (
-    <section className="flex flex-col gap-8">
-      <div className="rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 p-6 text-white shadow-lg">
-        <p className="text-xs uppercase tracking-wide opacity-80">오늘의 복지 큐레이션</p>
-        <h1 className="mt-2 text-2xl font-semibold">
-          {greeting}, {user?.name || "경기도민"}님!
-        </h1>
-        <p className="mt-1 text-white/90">
-          맞춤 혜택, 진행 중인 일정, 챗봇 상담까지 이곳에서 한 번에 확인하세요.
-        </p>
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/90">
-          <span className="rounded-full bg-white/20 px-4 py-1">백엔드 상태: {healthStatus}</span>
-          <span className="rounded-full bg-white/20 px-4 py-1">Google 로그인 연결됨</span>
+    <section className="space-y-8">
+      <div className="grid gap-6 rounded-3xl bg-white p-8 shadow-sm lg:grid-cols-[2fr,1fr]">
+        <div>
+          <p className="text-sm uppercase tracking-[0.4em] text-[#00a69c]">오늘의 정보</p>
+          <h1 className="mt-2 text-3xl font-bold text-slate-900">
+            {greeting}, {user?.name || "경기도민"}님!
+          </h1>
+          <p className="mt-2 text-sm text-slate-500">
+            지금 신청 가능한 맞춤 복지 혜택과 진행 상황을 한눈에 확인할 수 있어요.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-600">
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2">
+              <Sparkles className="h-4 w-4 text-[#00a69c]" />
+              추천 혜택 {recommendations.length}건
+            </span>
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2">
+              <BadgeCheck className="h-4 w-4 text-[#00a69c]" />
+              서비스 상태 {healthStatus}
+            </span>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
+          <h2 className="text-base font-semibold text-slate-900">진행 중인 신청</h2>
+          <p className="mt-1">지금은 확인된 신청 내역이 없습니다.</p>
+          <button
+            className="mt-4 w-full rounded-2xl bg-[#00a69c] py-3 text-sm font-semibold text-white"
+            onClick={() => navigate("/search")}
+          >
+            새 복지 찾기
+          </button>
         </div>
       </div>
 
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm lg:col-span-2">
-          <header className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">맞춤 추천 복지</h2>
-            <button className="text-sm text-blue-600 hover:text-blue-500" onClick={() => navigate("/search")}>
-              더 보기
-            </button>
-          </header>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {recommendations.map((benefit) => (
-              <article
-                key={benefit.id}
-                className="rounded-xl border border-slate-100 p-4 shadow transition hover:shadow-md"
-              >
-                <div className="flex items-center gap-2 text-xs font-medium text-sky-600">
-                  <span>{benefit.category}</span>
-                  <span className="text-slate-400">•</span>
-                  <span>{benefit.region}</span>
-                </div>
-                <h3 className="mt-2 text-lg font-semibold text-slate-900">{benefit.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-slate-600">{benefit.desc}</p>
-                <button
-                  className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-500"
-                  onClick={() => navigate("/search")}
-                >
-                  자세히 보기 →
-                </button>
-              </article>
-            ))}
-            {!recommendations.length && !loadingBenefit && (
-              <p className="text-sm text-slate-500">추천 데이터를 불러오지 못했습니다.</p>
-            )}
-          </div>
+      <section className="rounded-3xl bg-white p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-slate-900">추천 복지 혜택</h2>
+          <button className="text-sm font-semibold text-[#00a69c]" onClick={() => navigate("/search")}>
+            전체 보기
+          </button>
         </div>
-
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <header className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">빠른 실행</h2>
-          </header>
-          <div className="mt-4 flex flex-col gap-3">
-            {actionButtons.map((action) => (
+        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {recommendations.map((benefit) => (
+            <article key={benefit.id} className="rounded-2xl border border-slate-100 p-5 shadow-sm">
+              <div className="text-xs font-semibold text-slate-400">
+                {benefit.category} · {benefit.region}
+              </div>
+              <h3 className="mt-2 text-lg font-semibold text-slate-900">{benefit.title}</h3>
+              <p className="mt-1 text-sm text-slate-600">{benefit.desc}</p>
               <button
-                key={action.id}
-                onClick={() => navigate(action.path)}
-                className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-left text-sm font-semibold text-slate-800 transition hover:border-blue-500 hover:bg-blue-50"
+                onClick={() => navigate("/search")}
+                className="mt-4 text-sm font-semibold text-[#00a69c] hover:underline"
               >
-                <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-blue-100 p-2 text-blue-600">{action.icon}</span>
-                  {action.label}
-                </div>
-                <span className="text-blue-500">→</span>
+                자세히 보기
               </button>
-            ))}
-          </div>
+            </article>
+          ))}
+          {!recommendations.length && !loadingBenefit && (
+            <div className="col-span-full rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
+              추천 데이터를 불러오지 못했습니다.
+            </div>
+          )}
         </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">다가오는 일정 & 알림</h2>
-            <button onClick={() => navigate("/chat")} className="text-sm text-blue-600 hover:text-blue-500">
-              챗봇에게 일정 물어보기
-            </button>
-          </div>
-          <ul className="mt-4 space-y-4">
-            {UPCOMING_ALERTS.map((alert) => (
-              <li
-                key={alert.id}
-                className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm shadow-sm"
+        <div className="rounded-3xl bg-white p-6 shadow-sm lg:col-span-2">
+          <h2 className="text-xl font-semibold text-slate-900">빠른 메뉴</h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {QUICK_ACTIONS.map(({ id, label, desc, icon: Icon, path }) => (
+              <button
+                key={id}
+                onClick={() => navigate(path)}
+                className="flex items-center justify-between rounded-2xl border border-slate-100 px-4 py-3 text-left transition hover:border-[#00a69c]/40 hover:bg-[#00a69c]/5"
               >
-                <div>
-                  <p className="font-semibold text-slate-900">{alert.title}</p>
-                  <p className="text-xs text-slate-500">{alert.due}</p>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-2xl bg-[#00a69c]/10 p-3 text-[#00a69c]">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-base font-semibold text-slate-900">{label}</p>
+                    <p className="text-xs text-slate-500">{desc}</p>
+                  </div>
                 </div>
-                <button className="text-sm font-medium text-blue-600 hover:text-blue-500">
-                  {alert.action}
-                </button>
+                <span className="text-sm text-[#00a69c]">바로가기</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-slate-900">최근 활동</h2>
+          <ul className="mt-4 space-y-4 text-sm">
+            {RECENT_ACTIVITIES.map((activity) => (
+              <li key={activity.id} className="rounded-2xl border border-slate-100 p-4">
+                <p className="font-semibold text-slate-900">{activity.title}</p>
+                <div className="mt-1 flex items-center justify-between text-xs text-slate-500">
+                  <span>{activity.status}</span>
+                  <span>{activity.date}</span>
+                </div>
               </li>
             ))}
           </ul>
-        </div>
-
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-2 text-slate-900">
-            <Bell className="h-5 w-5 text-blue-500" />
-            <h2 className="text-lg font-semibold">알림 설정</h2>
-          </div>
-          <p className="mt-2 text-sm text-slate-600">
-            맞춤 혜택, 접수 마감, 상담 일정을 SMS와 캘린더로 자동 받아보세요.
-          </p>
-          <div className="mt-4 space-y-3 text-sm text-slate-700">
-            <label className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
-              <span>SMS 알림 받기</span>
-              <input type="checkbox" className="h-5 w-5 accent-blue-600" defaultChecked />
-            </label>
-            <label className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
-              <span>Google Calendar 연동</span>
-              <input type="checkbox" className="h-5 w-5 accent-blue-600" defaultChecked />
-            </label>
-          </div>
-          <p className="mt-3 text-xs text-slate-400">
-            ※ 현재는 데모 UI입니다. Calendar/SMS API 연결 후 자동화할 예정이에요.
-          </p>
         </div>
       </section>
     </section>
