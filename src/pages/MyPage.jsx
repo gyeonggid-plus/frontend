@@ -16,12 +16,9 @@ export default function MyPage() {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         if (!res.ok) throw new Error("failed");
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setApplications(data);
-        } else {
-          setApplications([]);
-        }
+        const payload = await res.json();
+        const list = Array.isArray(payload?.data) ? payload.data : payload;
+        setApplications(Array.isArray(list) ? list : []);
       } catch (err) {
         console.error(err);
         setError("신청 내역을 불러오지 못했습니다.");
@@ -80,10 +77,13 @@ export default function MyPage() {
                     {app.title || app.name || "복지 신청"}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {app.region || "경기도"} · {app.status || "검토 중"} ·{" "}
-                    {app.applied_at
-                      ? new Date(app.applied_at).toLocaleDateString()
-                      : "방금 전"}
+                    {(app.region || "경기도") +
+                      " · " +
+                      (app.status || "검토 중") +
+                      " · " +
+                      (app.applied_at
+                        ? new Date(app.applied_at).toLocaleDateString()
+                        : "방금 전")}
                   </p>
                 </div>
                 <button

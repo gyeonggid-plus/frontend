@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   BadgeCheck,
@@ -120,6 +120,38 @@ export default function Home() {
   const [submittingId, setSubmittingId] = useState(null);
   const [appliedIds, setAppliedIds] = useState([]);
   const [applicationMessage, setApplicationMessage] = useState("");
+  const [recentApplications, setRecentApplications] = useState([]);
+
+  const fetchApplications = useCallback(async () => {
+    if (!token) {
+      setAppliedIds([]);
+      setRecentApplications([]);
+      return;
+    }
+    try {
+      const res = await fetch(`${BASE_URL}/api/applications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const payload = await res.json();
+      const list = Array.isArray(payload?.data) ? payload.data : payload;
+      if (Array.isArray(list)) {
+        const ids = list
+          .map((item) =>
+            normalizeApplicationId(item.benefit_id ?? item.benefitId ?? item.id)
+          )
+          .filter((id) => id !== null);
+        setAppliedIds(ids);
+        setRecentApplications(list.slice(0, 3));
+      } else {
+        setAppliedIds([]);
+        setRecentApplications([]);
+      }
+    } catch (err) {
+      console.warn("Failed to load applications", err);
+      setRecentApplications([]);
+    }
+  }, [BASE_URL, token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,35 +191,12 @@ export default function Home() {
     loadStatus();
     loadBenefits();
 
-    async function loadApplications() {
-      if (!token) return;
-      try {
-        const res = await fetch(`${BASE_URL}/api/applications`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const ids = data
-            .map((item) =>
-              normalizeApplicationId(
-                item.benefit_id ?? item.benefitId ?? item.id
-              )
-            )
-            .filter((id) => id !== null);
-          setAppliedIds(ids);
-        }
-      } catch (err) {
-        console.warn("Failed to load applications", err);
-      }
-    }
-
-    loadApplications();
+    fetchApplications();
 
     return () => {
       cancelled = true;
     };
-  }, [BASE_URL, token]);
+  }, [BASE_URL, fetchApplications]);
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -209,7 +218,11 @@ export default function Home() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ benefit_id: normalizedId, title: benefit.title }),
+        body: JSON.stringify({
+          benefit_id: normalizedId,
+          title: benefit.title,
+          email: user?.email ?? "",
+        }),
       });
       if (!res.ok) throw new Error("failed");
       setAppliedIds((prev) =>
@@ -218,6 +231,7 @@ export default function Home() {
       setApplicationMessage(
         `'${benefit.title}' 신청이 완료되었습니다. 마이페이지에서 신청 내역을 확인할 수 있습니다.`
       );
+      fetchApplications();
     } catch (err) {
       console.error(err);
       setApplicationMessage("신청 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.");
@@ -230,15 +244,12 @@ export default function Home() {
     <section className="space-y-8">
       <div className="grid gap-6 rounded-3xl bg-white p-8 shadow-sm lg:grid-cols-[2fr,1fr]">
         <div>
-          <p className="text-sm uppercase tracking-[0.4em] text-[#00a69c]">
-            오늘의 정보
-          </p>
+          <p className="text-sm uppercase tracking-[0.4em] text-[#00a69c]">오늘의 정보</p>
           <h1 className="mt-2 text-3xl font-bold text-slate-900">
             {greeting}, {user?.name || "경기도민"}님!
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            지금 신청 가능한 맞춤 복지 혜택과 진행 상황을 한눈에 확인할 수
-            있어요.
+            지금 신청 가능한 맞춤 복지 혜택과 진행 상황을 한눈에 확인할 수 있어요.
           </p>
           <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-600">
             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2">
@@ -247,24 +258,50 @@ export default function Home() {
             </span>
             <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2">
               <BadgeCheck className="h-4 w-4 text-[#00a69c]" />
-              서비스 상태 {healthStatus}
+              서버 상태 {healthStatus}
             </span>
           </div>
         </div>
         <div className="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">
-          <h2 className="text-base font-semibold text-slate-900">
-            진행 중인 신청
-          </h2>
-          <p className="mt-1">지금은 확인된 신청 내역이 없습니다.</p>
-          <button
-            className="mt-4 w-full rounded-2xl bg-[#00a69c] py-3 text-sm font-semibold text-white"
-            onClick={() => navigate("/search")}
-          >
-            새 복지 찾기
-          </button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">진행 중인 신청</h2>
+              <p className="mt-1">최근 신청한 복지 혜택을 최대 3건까지 보여드려요.</p>
+            </div>
+            <button
+              className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-[#00a69c] hover:text-[#00a69c]"
+              onClick={() => navigate("/mypage")}
+            >
+              마이페이지
+            </button>
+          </div>
+          {recentApplications.length ? (
+            <ul className="mt-4 space-y-3">
+              {recentApplications.map((app) => (
+                <li
+                  key={app.id ?? app.benefit_id}
+                  className="rounded-2xl border border-slate-100 px-4 py-3"
+                >
+                  <p className="text-sm font-semibold text-slate-900">
+                    {app.title || app.name || "복지 신청"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {(app.status || "검토 중") +
+                      " · " +
+                      (app.applied_at
+                        ? new Date(app.applied_at).toLocaleDateString()
+                        : "방금")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              진행 중인 신청 내역이 없습니다. 원하는 혜택을 신청해 보세요.
+            </p>
+          )}
         </div>
       </div>
-
       <section className="rounded-3xl bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-slate-900">
