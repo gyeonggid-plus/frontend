@@ -2,33 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Navigation, PhoneCall } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-const FALLBACK_SPOTS = [
-  {
-    id: 1,
-    name: "경기 복지센터",
-    address: "수원시 팔달구 정조로 123",
-    phone: "031-000-0000",
-    lat: 37.263537,
-    lng: 127.028091,
-  },
-  {
-    id: 2,
-    name: "용인 지사센터",
-    address: "용인시 기흥구 보정동 22",
-    phone: "031-111-0000",
-    lat: 37.271662,
-    lng: 127.124601,
-  },
-  {
-    id: 3,
-    name: "고양 마음돌봄 거점",
-    address: "고양시 일산서구 중앙로 110",
-    phone: "031-222-0000",
-    lat: 37.65836,
-    lng: 126.83202,
-  },
-];
-
 const FILTERS = ["전체", "내 지역"];
 const DEFAULT_CENTER = { lat: 37.3854, lng: 127.1155 };
 const KAKAO_SCRIPT_ID = "kakao-map-sdk";
@@ -45,8 +18,8 @@ const hasValidUrl = (url) => typeof url === "string" && url.trim().length >= 4;
 export default function MapView() {
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const { token, user } = useAuth();
-  const [spots, setSpots] = useState(FALLBACK_SPOTS);
-  const [selected, setSelected] = useState(FALLBACK_SPOTS[0]);
+  const [spots, setSpots] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [activeFilter, setActiveFilter] = useState(FILTERS[0]);
   const [userRegion, setUserRegion] = useState("");
   const [error, setError] = useState("");
@@ -55,25 +28,28 @@ export default function MapView() {
   const markersRef = useRef([]);
   const [mapReady, setMapReady] = useState(false);
 
+  const derivedRegion = (userRegion || user?.location || "").trim();
+
   const filteredSpots = useMemo(() => {
     let dataset = spots.slice();
-    if (activeFilter === "내 지역" && userRegion) {
-      dataset = dataset.filter((spot) =>
-        spot.sigun === userRegion || spot.sigun?.startsWith(userRegion)
+    if (activeFilter === "내 지역" && derivedRegion) {
+      dataset = dataset.filter(
+        (spot) =>
+          spot.sigun === derivedRegion ||
+          spot.sigun?.startsWith(derivedRegion) ||
+          spot.address?.includes(derivedRegion)
       );
     }
     return dataset.slice(0, 20);
-  }, [activeFilter, spots, userRegion]);
+  }, [activeFilter, derivedRegion, spots]);
 
   useEffect(() => {
     async function loadSpots() {
       const email = user?.email;
       if (!email) {
-        setError(
-          "사용자 이메일을 확인할 수 없어 기본 센터 목록을 보여드립니다."
-        );
-        setSpots(FALLBACK_SPOTS);
-        setSelected(FALLBACK_SPOTS[0]);
+        setError("사용자 이메일을 확인할 수 없어 데이터를 보여드릴 수 없어요.");
+        setSpots([]);
+        setSelected(null);
         setUserRegion("");
         return;
       }
@@ -94,6 +70,7 @@ export default function MapView() {
           ? payload.data
           : payload;
 
+        console.log("Facilities payload:", payload);
         if (Array.isArray(remoteData) && remoteData.length) {
           const normalized = remoteData.map((item, index) => {
             const latCandidate =
@@ -154,21 +131,21 @@ export default function MapView() {
             a.name.localeCompare(b.name, "ko")
           );
           setSpots(sorted);
-          setSelected(sorted[0]);
-          setUserRegion(payload?.user_location || "");
+          setSelected(sorted[0] ?? null);
+          setUserRegion(payload?.user_location || user?.location || "");
           setError("");
         } else {
-          setSpots(FALLBACK_SPOTS);
-          setSelected(FALLBACK_SPOTS[0]);
+          setSpots([]);
+          setSelected(null);
           setUserRegion("");
         }
       } catch (err) {
         console.warn("Failed to load centers", err);
         setError(
-          "복지센터 정보를 불러오지 못해 기본 목록을 대신 보여드립니다."
+          "복지센터 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
         );
-        setSpots(FALLBACK_SPOTS);
-        setSelected(FALLBACK_SPOTS[0]);
+        setSpots([]);
+        setSelected(null);
         setUserRegion("");
       }
     }
@@ -343,36 +320,42 @@ export default function MapView() {
           )}
 
           <div className="mt-8 max-h-[360px] space-y-3 overflow-y-auto pr-2">
-            {filteredSpots.map((spot) => (
-              <button
-                key={spot.id}
-                onClick={() => setSelected(spot)}
-                className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                  selected?.id === spot.id
-                    ? "border-[#00a69c] bg-[#00a69c]/5 text-[#00a69c]"
-                    : "border-slate-100 text-slate-700 hover:border-[#00a69c]/40"
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`rounded-full p-1.5 ${
-                      selected?.id === spot.id
-                        ? "bg-[#00a69c]/80 text-white"
-                        : "bg-slate-100 text-[#00a69c]"
-                    }`}
-                  >
-                    <MapPin className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <p className="font-semibold">
-                      {spot.sigun ? `[${spot.sigun}] ` : ""}
-                      {spot.name}
-                    </p>
-                    <p className="text-xs text-slate-500">{spot.address}</p>
+            {filteredSpots.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">
+                표시할 복지센터가 없습니다.
+              </p>
+            ) : (
+              filteredSpots.map((spot) => (
+                <button
+                  key={spot.id}
+                  onClick={() => setSelected(spot)}
+                  className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                    selected?.id === spot.id
+                      ? "border-[#00a69c] bg-[#00a69c]/5 text-[#00a69c]"
+                      : "border-slate-100 text-slate-700 hover:border-[#00a69c]/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`rounded-full p-1.5 ${
+                        selected?.id === spot.id
+                          ? "bg-[#00a69c]/80 text-white"
+                          : "bg-slate-100 text-[#00a69c]"
+                      }`}
+                    >
+                      <MapPin className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="font-semibold">
+                        {spot.sigun ? `[${spot.sigun}] ` : ""}
+                        {spot.name}
+                      </p>
+                      <p className="text-xs text-slate-500">{spot.address}</p>
+                    </div>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))
+            )}
           </div>
         </div>
       </div>
