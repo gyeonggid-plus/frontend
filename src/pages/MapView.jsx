@@ -60,7 +60,7 @@ export default function MapView() {
   useEffect(() => {
     async function loadSpots() {
       try {
-        const res = await fetch(`${BASE_URL}/api/welfare/centers`);
+        const res = await fetch(`${BASE_URL}/api/welfare/list`);
         if (!res.ok) throw new Error("failed");
         const payload = await res.json();
         const remoteData = Array.isArray(payload?.data)
@@ -267,7 +267,9 @@ export default function MapView() {
                     기관 사이트 바로가기
                   </a>
                 ) : (
-                  <p className="text-xs text-slate-400">기관 사이트 정보가 없습니다.</p>
+                  <p className="text-xs text-slate-400">
+                    기관 사이트 정보가 없습니다.
+                  </p>
                 )}
               </div>
             </>
