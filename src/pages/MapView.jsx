@@ -67,30 +67,56 @@ export default function MapView() {
           ? payload.data
           : payload;
         if (Array.isArray(remoteData) && remoteData.length) {
-          const normalized = remoteData.map((item, index) => ({
-            id: item.id ?? index,
-            name: item.name ?? item.title ?? item.service_name ?? "복지 센터",
-            address:
+          const normalized = remoteData.map((item, index) => {
+            const name =
+              item.name ??
+              item.INST_NM ??
+              item.title ??
+              item.service_name ??
+              "복지 센터";
+            const address =
               item.address ??
+              item.road_addr ??
+              item.REFINE_ROADNM_ADDR ??
+              item.lot_addr ??
+              item.REFINE_LOTNO_ADDR ??
               item.location ??
-              [item.sigun_name, item.address_detail]
-                .filter(Boolean)
-                .join(" ") ??
-              "",
-            phone: item.phone ?? item.contact ?? "",
-            lat: Number(
-              item.lat ?? item.latitude ?? item.y ?? DEFAULT_CENTER.lat
-            ),
-            lng: Number(
-              item.lng ?? item.longitude ?? item.x ?? DEFAULT_CENTER.lng
-            ),
-            url:
+              [item.sigun_name, item.address_detail].filter(Boolean).join(" ");
+
+            const phone = item.phone ?? item.TELNO ?? item.contact ?? "";
+            const lat = Number(
+              item.lat ??
+                item.latitude ??
+                item.REFINE_WGS84_LAT ??
+                item.y ??
+                DEFAULT_CENTER.lat
+            );
+            const lng = Number(
+              item.lng ??
+                item.longitude ??
+                item.REFINE_WGS84_LOGT ??
+                item.x ??
+                DEFAULT_CENTER.lng
+            );
+            const url =
               item.url ??
+              item.lo_addr ??
+              item.HMPG_URL ??
               item.service_url ??
               item.apply_method ??
               item.link ??
-              "",
-          }));
+              "";
+
+            return {
+              id: item.id ?? index,
+              name,
+              address: address || "",
+              phone,
+              lat: Number.isFinite(lat) ? lat : DEFAULT_CENTER.lat,
+              lng: Number.isFinite(lng) ? lng : DEFAULT_CENTER.lng,
+              url,
+            };
+          });
           setSpots(
             normalized.sort((a, b) => a.name.localeCompare(b.name, "ko"))
           );
