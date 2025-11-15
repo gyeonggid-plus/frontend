@@ -74,9 +74,7 @@ export default function MapView() {
     async function loadSpots() {
       const email = user?.email;
       if (!email) {
-        setError(
-          "사용자 정보를 확인할 수 없어 기본 센터 목록을 보여드릴게요."
-        );
+        setError("사용자 정보를 확인할 수 없어 기본 센터 목록을 보여드릴게요.");
         setSpots(FALLBACK_SPOTS);
         setSelected(FALLBACK_SPOTS[0]);
         setUserRegion("");
@@ -88,7 +86,7 @@ export default function MapView() {
         const headers = new Headers();
         if (token) headers.append("Authorization", `Bearer ${token}`);
         const res = await fetch(
-          `${BASE_URL}/api/facilities?${params.toString()}`,
+          `${BASE_URL}/api/map/facilities?${params.toString()}`,
           {
             headers,
           }
