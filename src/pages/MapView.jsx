@@ -29,7 +29,7 @@ const FALLBACK_SPOTS = [
   },
 ];
 
-const FILTERS = ["전체", "내 지역", "근처"];
+const FILTERS = ["전체", "내 지역"];
 const DEFAULT_CENTER = { lat: 37.3854, lng: 127.1155 };
 const KAKAO_SCRIPT_ID = "kakao-map-sdk";
 
@@ -66,8 +66,7 @@ export default function MapView() {
           spot.name?.replace(/\s+/g, "").includes(keyword)
       );
     }
-    if (activeFilter === "근처") return dataset.slice(0, 5);
-    if (activeFilter === "내 지역") return dataset.slice(0, 10);
+    if (activeFilter === "내 지역") return dataset.slice(0, 20);
     return dataset.slice(0, 20);
   }, [activeFilter, spots, userRegion]);
 
@@ -343,7 +342,7 @@ export default function MapView() {
             </p>
           )}
 
-          <div className="mt-8 space-y-3">
+          <div className="mt-8 max-h-[360px] space-y-3 overflow-y-auto pr-2">
             {filteredSpots.map((spot) => (
               <button
                 key={spot.id}
