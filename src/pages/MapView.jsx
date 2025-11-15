@@ -40,8 +40,7 @@ const normalizeUrl = (url = "") => {
     : `https://${url}`;
 };
 
-const hasValidUrl = (url) =>
-  typeof url === "string" && url.trim().length >= 4;
+const hasValidUrl = (url) => typeof url === "string" && url.trim().length >= 4;
 
 export default function MapView() {
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -59,14 +58,10 @@ export default function MapView() {
   const filteredSpots = useMemo(() => {
     let dataset = spots.slice();
     if (activeFilter === "내 지역" && userRegion) {
-      const keyword = userRegion.replace(/\s+/g, "");
-      dataset = dataset.filter(
-        (spot) =>
-          spot.address?.replace(/\s+/g, "").includes(keyword) ||
-          spot.name?.replace(/\s+/g, "").includes(keyword)
+      dataset = dataset.filter((spot) =>
+        spot.sigun === userRegion || spot.sigun?.startsWith(userRegion)
       );
     }
-    if (activeFilter === "내 지역") return dataset.slice(0, 20);
     return dataset.slice(0, 20);
   }, [activeFilter, spots, userRegion]);
 
@@ -132,6 +127,11 @@ export default function MapView() {
                 [item.sigun_name, item.address_detail]
                   .filter(Boolean)
                   .join(" "),
+              sigun:
+                item.sigun_name ??
+                item.SIGUN_NM ??
+                item.location?.split(" ")?.[0] ??
+                "",
               phone: item.phone ?? item.TELNO ?? item.contact ?? "",
               lat: Number.isFinite(Number(latCandidate))
                 ? Number(latCandidate)
@@ -364,7 +364,10 @@ export default function MapView() {
                     <MapPin className="h-4 w-4" />
                   </span>
                   <div>
-                    <p className="font-semibold">{spot.name}</p>
+                    <p className="font-semibold">
+                      {spot.sigun ? `[${spot.sigun}] ` : ""}
+                      {spot.name}
+                    </p>
                     <p className="text-xs text-slate-500">{spot.address}</p>
                   </div>
                 </div>
