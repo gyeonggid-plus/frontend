@@ -40,7 +40,8 @@ const normalizeUrl = (url = "") => {
     : `https://${url}`;
 };
 
-const hasValidUrl = (url) => Boolean(url && url.trim().length >= 4);
+const hasValidUrl = (url) =>
+  typeof url === "string" && url.trim().length >= 4;
 
 export default function MapView() {
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -74,7 +75,9 @@ export default function MapView() {
     async function loadSpots() {
       const email = user?.email;
       if (!email) {
-        setError("사용자 정보를 확인할 수 없어 기본 센터 목록을 보여드릴게요.");
+        setError(
+          "사용자 이메일을 확인할 수 없어 기본 센터 목록을 보여드립니다."
+        );
         setSpots(FALLBACK_SPOTS);
         setSelected(FALLBACK_SPOTS[0]);
         setUserRegion("");
@@ -85,13 +88,13 @@ export default function MapView() {
         const params = new URLSearchParams({ email });
         const headers = new Headers();
         if (token) headers.append("Authorization", `Bearer ${token}`);
+
         const res = await fetch(
           `${BASE_URL}/api/map/facilities?${params.toString()}`,
-          {
-            headers,
-          }
+          { headers }
         );
         if (!res.ok) throw new Error("failed");
+
         const payload = await res.json();
         const remoteData = Array.isArray(payload?.data)
           ? payload.data
@@ -163,7 +166,7 @@ export default function MapView() {
       } catch (err) {
         console.warn("Failed to load centers", err);
         setError(
-          "복지센터 정보를 불러오지 못해 기본 목록을 대신 보여드릴게요."
+          "복지센터 정보를 불러오지 못해 기본 목록을 대신 보여드립니다."
         );
         setSpots(FALLBACK_SPOTS);
         setSelected(FALLBACK_SPOTS[0]);
