@@ -60,7 +60,7 @@ export default function MapView() {
   useEffect(() => {
     async function loadSpots() {
       try {
-        const res = await fetch(`${BASE_URL}/api/list`);
+        const res = await fetch(`${BASE_URL}/api/facilities`);
         if (!res.ok) throw new Error("failed");
         const payload = await res.json();
         const remoteData = Array.isArray(payload?.data)
