@@ -1,36 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Navigation, PhoneCall } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const FALLBACK_SPOTS = [
   {
     id: 1,
     name: "경기 복지센터",
-    address: "수원시 팔달구 효원로 123",
+    address: "수원시 팔달구 정조로 123",
     phone: "031-000-0000",
     lat: 37.263537,
     lng: 127.028091,
   },
   {
     id: 2,
-    name: "청년 지원센터",
-    address: "용인시 기흥구 흥덕1로 22",
+    name: "용인 지사센터",
+    address: "용인시 기흥구 보정동 22",
     phone: "031-111-0000",
     lat: 37.271662,
     lng: 127.124601,
   },
   {
     id: 3,
-    name: "가족 돌봄 거점",
-    address: "고양시 일산동구 중앙로 110",
+    name: "고양 마음돌봄 거점",
+    address: "고양시 일산서구 중앙로 110",
     phone: "031-222-0000",
     lat: 37.65836,
     lng: 126.83202,
   },
 ];
 
-const filters = ["전체", "도내", "근처"];
+const FILTERS = ["전체", "내 지역", "근처"];
 const DEFAULT_CENTER = { lat: 37.3854, lng: 127.1155 };
 const KAKAO_SCRIPT_ID = "kakao-map-sdk";
+
 const normalizeUrl = (url = "") => {
   if (!url) return "";
   return url.startsWith("http://") || url.startsWith("https://")
@@ -38,11 +40,14 @@ const normalizeUrl = (url = "") => {
     : `https://${url}`;
 };
 
+const hasValidUrl = (url) => Boolean(url && url.trim().length >= 4);
+
 export default function MapView() {
   const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const { token, user } = useAuth();
   const [spots, setSpots] = useState(FALLBACK_SPOTS);
   const [selected, setSelected] = useState(FALLBACK_SPOTS[0]);
-  const [activeFilter, setActiveFilter] = useState(filters[0]);
+  const [activeFilter, setActiveFilter] = useState(FILTERS[0]);
   const [userRegion, setUserRegion] = useState("");
   const [error, setError] = useState("");
   const mapContainerRef = useRef(null);
@@ -51,77 +56,107 @@ export default function MapView() {
   const [mapReady, setMapReady] = useState(false);
 
   const filteredSpots = useMemo(() => {
-    const dataset = spots.slice();
+    let dataset = spots.slice();
+    if (activeFilter === "내 지역" && userRegion) {
+      const keyword = userRegion.replace(/\s+/g, "");
+      dataset = dataset.filter(
+        (spot) =>
+          spot.address?.replace(/\s+/g, "").includes(keyword) ||
+          spot.name?.replace(/\s+/g, "").includes(keyword)
+      );
+    }
     if (activeFilter === "근처") return dataset.slice(0, 5);
-    if (activeFilter === "도내") return dataset.slice(0, 10);
+    if (activeFilter === "내 지역") return dataset.slice(0, 10);
     return dataset.slice(0, 20);
-  }, [activeFilter, spots]);
+  }, [activeFilter, spots, userRegion]);
 
   useEffect(() => {
     async function loadSpots() {
+      const email = user?.email;
+      if (!email) {
+        setError(
+          "사용자 정보를 확인할 수 없어 기본 센터 목록을 보여드릴게요."
+        );
+        setSpots(FALLBACK_SPOTS);
+        setSelected(FALLBACK_SPOTS[0]);
+        setUserRegion("");
+        return;
+      }
+
       try {
-        const res = await fetch(`${BASE_URL}/api/facilities`);
+        const params = new URLSearchParams({ email });
+        const headers = new Headers();
+        if (token) headers.append("Authorization", `Bearer ${token}`);
+        const res = await fetch(
+          `${BASE_URL}/api/facilities?${params.toString()}`,
+          {
+            headers,
+          }
+        );
         if (!res.ok) throw new Error("failed");
         const payload = await res.json();
         const remoteData = Array.isArray(payload?.data)
           ? payload.data
           : payload;
+
         if (Array.isArray(remoteData) && remoteData.length) {
           const normalized = remoteData.map((item, index) => {
-            const name =
-              item.name ??
-              item.INST_NM ??
-              item.title ??
-              item.service_name ??
-              "복지 센터";
-            const address =
-              item.address ??
-              item.road_addr ??
-              item.REFINE_ROADNM_ADDR ??
-              item.lot_addr ??
-              item.REFINE_LOTNO_ADDR ??
-              item.location ??
-              [item.sigun_name, item.address_detail].filter(Boolean).join(" ");
-
-            const phone = item.phone ?? item.TELNO ?? item.contact ?? "";
-            const lat = Number(
+            const latCandidate =
               item.lat ??
-                item.latitude ??
-                item.REFINE_WGS84_LAT ??
-                item.y ??
-                DEFAULT_CENTER.lat
-            );
-            const lng = Number(
+              item.latitude ??
+              item.REFINE_WGS84_LAT ??
+              item.y ??
+              DEFAULT_CENTER.lat;
+            const lngCandidate =
               item.lng ??
-                item.longitude ??
-                item.REFINE_WGS84_LOGT ??
-                item.x ??
-                DEFAULT_CENTER.lng
-            );
-            const url =
-              item.url ??
-              item.lo_addr ??
-              item.HMPG_URL ??
-              item.service_url ??
-              item.apply_method ??
-              item.link ??
-              "";
+              item.longitude ??
+              item.REFINE_WGS84_LOGT ??
+              item.x ??
+              DEFAULT_CENTER.lng;
 
             return {
               id: item.id ?? index,
-              name,
-              address: address || "",
-              phone,
-              lat: Number.isFinite(lat) ? lat : DEFAULT_CENTER.lat,
-              lng: Number.isFinite(lng) ? lng : DEFAULT_CENTER.lng,
-              url,
+              name:
+                item.name ??
+                item.INST_NM ??
+                item.title ??
+                item.service_name ??
+                "복지 센터",
+              address:
+                item.address ??
+                item.road_addr ??
+                item.REFINE_ROADNM_ADDR ??
+                item.lot_addr ??
+                item.REFINE_LOTNO_ADDR ??
+                item.location ??
+                [item.sigun_name, item.address_detail]
+                  .filter(Boolean)
+                  .join(" "),
+              phone: item.phone ?? item.TELNO ?? item.contact ?? "",
+              lat: Number.isFinite(Number(latCandidate))
+                ? Number(latCandidate)
+                : DEFAULT_CENTER.lat,
+              lng: Number.isFinite(Number(lngCandidate))
+                ? Number(lngCandidate)
+                : DEFAULT_CENTER.lng,
+              url:
+                item.url ??
+                item.lo_addr ??
+                item.HMPG_URL ??
+                item.service_url ??
+                item.apply_method ??
+                item.link ??
+                "",
             };
           });
-          setSpots(
-            normalized.sort((a, b) => a.name.localeCompare(b.name, "ko"))
+
+          const sorted = normalized.sort((a, b) =>
+            a.name.localeCompare(b.name, "ko")
           );
-          setSelected(normalized[0]);
-          if (payload?.user_location) setUserRegion(payload.user_location);
+          setSpots(sorted);
+          setSelected(sorted[0]);
+          setUserRegion(payload?.user_location || "");
+          setError("");
         } else {
           setSpots(FALLBACK_SPOTS);
           setSelected(FALLBACK_SPOTS[0]);
@@ -130,15 +165,16 @@ export default function MapView() {
       } catch (err) {
         console.warn("Failed to load centers", err);
         setError(
-          "실시간 센터 정보를 불러오지 못했습니다. 기본 데이터를 보여드릴게요."
+          "복지센터 정보를 불러오지 못해 기본 목록을 대신 보여드릴게요."
         );
         setSpots(FALLBACK_SPOTS);
         setSelected(FALLBACK_SPOTS[0]);
         setUserRegion("");
       }
     }
+
     loadSpots();
-  }, [BASE_URL]);
+  }, [BASE_URL, token, user]);
 
   useEffect(() => {
     const loadMap = () => {
@@ -185,6 +221,7 @@ export default function MapView() {
     if (!mapReady || !mapRef.current || !window.kakao) return;
     markersRef.current.forEach((marker) => marker.setMap(null));
     markersRef.current = [];
+
     filteredSpots.forEach((spot) => {
       const marker = new window.kakao.maps.Marker({
         map: mapRef.current,
@@ -213,16 +250,16 @@ export default function MapView() {
             복지 지도
           </p>
           <h1 className="mt-1 text-2xl font-semibold text-slate-900">
-            가까운 복지 센터 찾기
+            가까운 복지센터 찾기
           </h1>
           <p className="text-sm text-slate-500">
             {userRegion
-              ? `${userRegion} 기준 추천 센터입니다.`
-              : "필터를 선택하고 지도에서 원하는 센터를 확인하세요."}
+              ? `${userRegion} 기준 추천 센터입니다`
+              : "센터를 선택하고 지역에 맞는 도움을 확인하세요"}
           </p>
         </div>
         <div className="flex gap-2">
-          {filters.map((filter) => (
+          {FILTERS.map((filter) => (
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
@@ -239,7 +276,7 @@ export default function MapView() {
       </header>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div className="relative h-[420px] overflow-hidden rounded-3xl border border-slate-100 bg-gradient-to-br from-slate-100 via-white to-slate-200 sm:h-[480px] lg:h-[520px]">
+        <div className="relative h-[460px] overflow-hidden rounded-3xl border border-slate-100 bg-gradient-to-br from-slate-100 via-white to-slate-200 sm:h-[520px] lg:h-[560px]">
           <div ref={mapContainerRef} className="absolute inset-0" />
           <div className="absolute left-4 top-4 rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-slate-600 shadow">
             내 위치 기준
@@ -283,25 +320,25 @@ export default function MapView() {
                   <Navigation className="h-4 w-4" />
                   길찾기 열기
                 </button>
-                {selected.url ? (
+                {hasValidUrl(selected.url) ? (
                   <a
                     href={normalizeUrl(selected.url)}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs font-semibold text-[#00a69c] underline underline-offset-4"
                   >
-                    기관 사이트 바로가기
+                    홈페이지 바로가기
                   </a>
                 ) : (
                   <p className="text-xs text-slate-400">
-                    기관 사이트 정보가 없습니다.
+                    홈페이지 정보가 없습니다.
                   </p>
                 )}
               </div>
             </>
           ) : (
             <p className="text-sm text-slate-500">
-              지도에서 센터를 선택해 주세요.
+              지역을 선택하면 상세 정보가 표시됩니다.
             </p>
           )}
 
