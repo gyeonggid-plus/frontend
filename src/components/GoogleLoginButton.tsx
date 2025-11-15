@@ -51,7 +51,7 @@ export default function GoogleLoginButton() {
             });
             const result = await response.json();
             if (!response.ok)
-              throw new Error(result?.detail || "로그?�에 ?�패?�습?�다");
+              throw new Error(result?.detail || "로그인에 실패했습니다.");
             return result;
           };
 
@@ -80,14 +80,14 @@ export default function GoogleLoginButton() {
             }
 
             if (!token) {
-              throw new Error("?�효???�큰??받�? 못했?�니??);
+              throw new Error("유효한 토큰을 받지 못했습니다.");
             }
 
             login(token, userInfo, isNewUser);
             navigate(isNewUser ? "/survey" : "/", { replace: true });
           } catch (e) {
             console.error(e);
-            alert("로그?�에 ?�패?�습?�다. ?�시 ?�도??주세??");
+            alert("로그인에 실패했습니다. 다시 시도해주세요.");
           }
         },
       });
