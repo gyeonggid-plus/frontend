@@ -44,17 +44,44 @@ export default function MyPage() {
     }
   }
 
+  const displayName = user?.name ? `${user.name} 님의` : "내";
+  const sexLabel =
+    user?.sex === "M" ? "남성" : user?.sex === "F" ? "여성" : "미등록";
+  const infoItems = [
+    { label: "거주 지역", value: user?.location || "미등록" },
+    { label: "나이", value: user?.age ? `${user.age}세` : "미등록" },
+    { label: "성별", value: sexLabel },
+  ];
+
   return (
     <section className="space-y-6">
       <header className="rounded-3xl bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-slate-900">
-          <span className="block sm:inline">{user?.name || "경기도민"}님의</span>{" "}
-          신청 내역
+          {displayName} 신청 내역
         </h1>
         <p className="mt-2 text-sm text-slate-500">
-          진행 중인 복지 신청을 한눈에 확인하고, 필요하면 취소할 수 있습니다.
+          진행 중인 복지 신청을 확인하고, 필요하면 취소할 수 있습니다.
         </p>
       </header>
+
+      <div className="rounded-3xl bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900">내 정보</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          {infoItems.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-slate-100 p-4 text-sm text-slate-600"
+            >
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#00a69c]">
+                {item.label}
+              </p>
+              <p className="mt-1 text-base font-semibold text-slate-900">
+                {item.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="rounded-3xl bg-white p-6 shadow-sm">
         {loading ? (
@@ -63,7 +90,7 @@ export default function MyPage() {
           <p className="text-sm text-red-500">{error}</p>
         ) : applications.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-            아직 신청한 복지 혜택이 없습니다. 홈에서 신청을 시작해 보세요.
+            아직 신청한 복지 혜택이 없습니다. 홈 화면에서 새로 신청해 보세요.
           </div>
         ) : (
           <ul className="space-y-4">
@@ -77,7 +104,7 @@ export default function MyPage() {
                     {app.title || app.name || "복지 신청"}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {(app.region || "경기도") +
+                    {(app.region || "미정") +
                       " · " +
                       (app.status || "검토 중") +
                       " · " +

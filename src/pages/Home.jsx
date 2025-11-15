@@ -171,18 +171,41 @@ export default function Home() {
         const res = await fetch(`${BASE_URL}/api/welfare/list`);
         if (!res.ok) throw new Error("failed to load benefits");
         const data = await res.json();
-        if (!cancelled && Array.isArray(data?.welfare)) {
-          const normalized = data.welfare.slice(0, 6).map((item, index) => ({
-            id: item.id ?? index,
-            title: item.title,
-            desc: item.desc,
-            region: item.region,
-            category: item.category ?? "복지",
-          }));
+        const welfareList = Array.isArray(data?.welfare)
+          ? data.welfare
+          : Array.isArray(data)
+          ? data
+          : [];
+
+        if (!cancelled && welfareList.length) {
+          const normalized = welfareList.slice(0, 6).map((item, index) => {
+            const descriptionCandidates = [
+              item.desc,
+              item.description,
+              item.target,
+              item.support_cycle,
+              item.apply_method,
+            ].filter(Boolean);
+
+            return {
+              id:
+                item.id ??
+                item.service_id ??
+                item.service_name ??
+                item.service_url ??
+                index,
+              title: item.title ?? item.service_name ?? "복지 서비스",
+              desc:
+                descriptionCandidates.join(" · ") ||
+                "자세한 내용은 상세 페이지에서 확인해 주세요.",
+              region: item.region ?? item.sigun_name ?? "경기도",
+              category: item.category ?? item.department ?? "복지",
+            };
+          });
           setRecommendations(normalized);
         }
-      } catch {
-        // keep fallback data
+      } catch (error) {
+        console.warn("failed to load benefits", error);
       } finally {
         if (!cancelled) setLoadingBenefit(false);
       }

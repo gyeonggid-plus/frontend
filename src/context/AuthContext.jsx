@@ -44,8 +44,13 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("needs_survey");
   }, []);
 
-  const completeSurvey = useCallback(() => {
+  const completeSurvey = useCallback((profile = {}) => {
     setNeedsSurvey(false);
+    setUser((prev) => {
+      const nextUser = prev ? { ...prev, ...profile } : { ...profile };
+      localStorage.setItem("user", JSON.stringify(nextUser));
+      return nextUser;
+    });
     localStorage.setItem("needs_survey", "false");
   }, []);
 

@@ -89,7 +89,7 @@ export default function Survey() {
       if (!res.ok) {
         throw new Error("failed to save user info");
       }
-      completeSurvey();
+      completeSurvey({ age: parsedAge, location: region, sex });
       navigate("/", { replace: true });
     } catch (err) {
       console.error(err);
